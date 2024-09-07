@@ -1,12 +1,16 @@
 package love.xiaozhi.middleware.thread.sdk.config;
 
 import cn.hutool.core.util.StrUtil;
+import love.xiaozhi.middleware.thread.sdk.domain.model.entity.ThreadPoolConfigEntity;
+import love.xiaozhi.middleware.thread.sdk.domain.model.valobj.RegistryEnumVO;
 import love.xiaozhi.middleware.thread.sdk.domain.service.IDynamicThreadPoolService;
 import love.xiaozhi.middleware.thread.sdk.domain.service.impl.DynamicThreadPoolService;
 import love.xiaozhi.middleware.thread.sdk.registry.IRegistry;
 import love.xiaozhi.middleware.thread.sdk.registry.impl.RedisRegistry;
 import love.xiaozhi.middleware.thread.sdk.trigger.job.ThreadPoolDataReportJob;
+import love.xiaozhi.middleware.thread.sdk.trigger.listener.ThreadPoolConfigUpdateListener;
 import org.redisson.Redisson;
+import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 import org.redisson.codec.JsonJacksonCodec;
 import org.redisson.config.Config;
@@ -20,6 +24,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -34,6 +40,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class DynamicThreadPoolAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(DynamicThreadPoolAutoConfiguration.class);
+
+    private String applicationName;
 
     @Bean("redissonClient")
     public RedissonClient redissonClient(DynamicThreadPoolAutoProperties properties) {
@@ -71,12 +79,36 @@ public class DynamicThreadPoolAutoConfiguration {
     }
 
     @Bean("dynamicThreadPoolService")
-    public DynamicThreadPoolService dynamicThreadPoolService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap) {
-        String applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
+    public DynamicThreadPoolService dynamicThreadPoolService(ApplicationContext applicationContext, Map<String, ThreadPoolExecutor> threadPoolExecutorMap, RedissonClient redissonClient) {
+        applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
         if (StrUtil.isBlank(applicationName)) {
             applicationName = "未配置";
             log.warn("动态线程池-SpringBoot应用未配置spring.application.name,无法获取到应用名称");
         }
+        // 从注册中心获取数据，配置本地线程池
+        Set<String> threadNames = threadPoolExecutorMap.keySet();
+        for (String threadName : threadNames) {
+            String cacheKey = String.join("_", RegistryEnumVO.THREAD_POOL_CONFIG_PARAMETER_KEY.getKey(), applicationName, threadName);
+            ThreadPoolConfigEntity threadPoolConfig = redissonClient.<ThreadPoolConfigEntity>getBucket(cacheKey).get();
+            if (Objects.isNull(threadPoolConfig)) continue;
+            // 更新本地线程池
+            ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadName);
+            threadPoolExecutor.setCorePoolSize(threadPoolConfig.getCorePoolSize());
+            threadPoolExecutor.setMaximumPoolSize(threadPoolConfig.getMaxPoolSize());
+        }
         return new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
+    }
+
+    @Bean("threadPoolConfigUpdateListener")
+    public ThreadPoolConfigUpdateListener threadPoolConfigUpdateListener(IDynamicThreadPoolService dynamicThreadPoolService, IRegistry redisRegistry) {
+        return new ThreadPoolConfigUpdateListener(dynamicThreadPoolService, redisRegistry);
+    }
+
+    @Bean("threadPoolConfigUpdateTopic")
+    public RTopic threadPoolConfigUpdateTopic(RedissonClient redissonClient, ThreadPoolConfigUpdateListener threadPoolConfigUpdateListener) {
+        String topicKey = String.join("_", RegistryEnumVO.DYNAMIC_THREAD_POOL_REDIS_TOPIC.getKey(), applicationName);
+        RTopic topic = redissonClient.getTopic(topicKey);
+        topic.addListener(ThreadPoolConfigEntity.class, threadPoolConfigUpdateListener);
+        return topic;
     }
 }
