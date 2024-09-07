@@ -11,3 +11,11 @@ thread:
         keep-alive-time: 5000
         block-queue-size: 5000
         policy: CallerRunsPolicy
+
+dynamic:
+  thread:
+    pool:
+      enable: true
+      host: 127.0.0.1
+      port: 6379
+      password: 123456
