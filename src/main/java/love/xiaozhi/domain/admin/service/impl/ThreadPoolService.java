@@ -11,6 +11,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 线程池服务实现
@@ -27,19 +28,45 @@ public class ThreadPoolService implements IThreadPoolService {
 
     @Override
     public List<ThreadPoolConfigEntity> listThreadPoolConfigs() {
-        return redissonClient.<ThreadPoolConfigEntity>getList(KeyEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey())
+        List<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity> threadPoolConfigEntities = redissonClient.<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity>getList(KeyEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey())
                 .readAll();
+        return threadPoolConfigEntities.stream()
+                .map(threadPoolConfigEntity -> ThreadPoolConfigEntity.builder()
+                        .applicationName(threadPoolConfigEntity.getApplicationName())
+                        .threadPoolName(threadPoolConfigEntity.getThreadPoolName())
+                        .poolSize(threadPoolConfigEntity.getPoolSize())
+                        .corePoolSize(threadPoolConfigEntity.getCorePoolSize())
+                        .maxPoolSize(threadPoolConfigEntity.getMaxPoolSize())
+                        .activeCount(threadPoolConfigEntity.getActiveCount())
+                        .queueSize(threadPoolConfigEntity.getQueueSize())
+                        .queueType(threadPoolConfigEntity.getQueueType())
+                        .remainingCapacity(threadPoolConfigEntity.getRemainingCapacity())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     @Override
     public ThreadPoolConfigEntity queryThreadPoolConfig(String applicationName, String threadPoolName) {
         String cacheKey = String.join("_", KeyEnumVO.THREAD_POOL_CONFIG_PARAMETER_KEY.getKey(), applicationName, threadPoolName);
-        return redissonClient.<ThreadPoolConfigEntity>getBucket(cacheKey).get();
+        love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity threadPoolConfigEntity = redissonClient.<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity>getBucket(cacheKey).get();
+        return ThreadPoolConfigEntity.builder()
+                .applicationName(threadPoolConfigEntity.getApplicationName())
+                .threadPoolName(threadPoolConfigEntity.getThreadPoolName())
+                .poolSize(threadPoolConfigEntity.getPoolSize())
+                .corePoolSize(threadPoolConfigEntity.getCorePoolSize())
+                .maxPoolSize(threadPoolConfigEntity.getMaxPoolSize())
+                .activeCount(threadPoolConfigEntity.getActiveCount())
+                .queueSize(threadPoolConfigEntity.getQueueSize())
+                .queueType(threadPoolConfigEntity.getQueueType())
+                .remainingCapacity(threadPoolConfigEntity.getRemainingCapacity())
+                .build();
     }
 
     @Override
     public void updateThreadPoolConfig(UpdateThreadPoolDTO updateThreadPoolDTO) {
-        ThreadPoolConfigEntity threadPoolConfigEntity = ThreadPoolConfigEntity.builder()
+        love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity threadPoolConfigEntity = love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity.builder()
+                .applicationName(updateThreadPoolDTO.getApplicationName())
+                .threadPoolName(updateThreadPoolDTO.getThreadPoolName())
                 .corePoolSize(updateThreadPoolDTO.getCorePoolSize())
                 .maxPoolSize(updateThreadPoolDTO.getMaxPoolSize())
                 .build();
