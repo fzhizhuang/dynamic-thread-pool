@@ -18,15 +18,15 @@ import java.util.List;
  */
 public class RedisRegistry implements IRegistry {
 
-    private final RedissonClient redissonClient;
+    private final RedissonClient redisson;
 
-    public RedisRegistry(RedissonClient redissonClient) {
-        this.redissonClient = redissonClient;
+    public RedisRegistry(RedissonClient redisson) {
+        this.redisson = redisson;
     }
 
     @Override
     public void reportThreadPoolConfig(List<ThreadPoolConfigEntity> threadPoolConfigEntities) {
-        RList<ThreadPoolConfigEntity> list = redissonClient.getList(RegistryEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey());
+        RList<ThreadPoolConfigEntity> list = redisson.getList(RegistryEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey());
         // 清除数据
         list.delete();
         // 保存数据
@@ -36,7 +36,7 @@ public class RedisRegistry implements IRegistry {
     @Override
     public void reportThreadPoolConfigParameter(ThreadPoolConfigEntity threadPoolConfigEntity) {
         String cacheKey = String.join("_", RegistryEnumVO.THREAD_POOL_CONFIG_PARAMETER_KEY.getKey(), threadPoolConfigEntity.getApplicationName(), threadPoolConfigEntity.getThreadPoolName());
-        RBucket<Object> bucket = redissonClient.getBucket(cacheKey);
+        RBucket<Object> bucket = redisson.getBucket(cacheKey);
         // 默认存储30天
         bucket.set(threadPoolConfigEntity, Duration.ofDays(30));
     }

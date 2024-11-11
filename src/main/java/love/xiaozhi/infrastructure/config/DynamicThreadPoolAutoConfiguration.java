@@ -45,8 +45,8 @@ public class DynamicThreadPoolAutoConfiguration {
 
     private String applicationName;
 
-    @Bean("redissonClient")
-    public RedissonClient redissonClient(DynamicThreadPoolAutoProperties properties) {
+    @Bean("redisson")
+    public RedissonClient redisson(DynamicThreadPoolAutoProperties properties) {
         Config config = new Config();
         //使用json序列化方式
         config.setCodec(JsonJacksonCodec.INSTANCE);

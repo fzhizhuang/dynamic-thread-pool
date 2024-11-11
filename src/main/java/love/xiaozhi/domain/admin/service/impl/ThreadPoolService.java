@@ -23,12 +23,12 @@ import java.util.stream.Collectors;
 @Service
 public class ThreadPoolService implements IThreadPoolService {
 
-    @Resource
-    private RedissonClient redissonClient;
+    @Resource(name = "redisson")
+    private RedissonClient redisson;
 
     @Override
     public List<ThreadPoolConfigEntity> listThreadPoolConfigs() {
-        List<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity> threadPoolConfigEntities = redissonClient.<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity>getList(KeyEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey())
+        List<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity> threadPoolConfigEntities = redisson.<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity>getList(KeyEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey())
                 .readAll();
         return threadPoolConfigEntities.stream()
                 .map(threadPoolConfigEntity -> ThreadPoolConfigEntity.builder()
@@ -48,7 +48,7 @@ public class ThreadPoolService implements IThreadPoolService {
     @Override
     public ThreadPoolConfigEntity queryThreadPoolConfig(String applicationName, String threadPoolName) {
         String cacheKey = String.join("_", KeyEnumVO.THREAD_POOL_CONFIG_PARAMETER_KEY.getKey(), applicationName, threadPoolName);
-        love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity threadPoolConfigEntity = redissonClient.<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity>getBucket(cacheKey).get();
+        love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity threadPoolConfigEntity = redisson.<love.xiaozhi.domain.sdk.model.entity.ThreadPoolConfigEntity>getBucket(cacheKey).get();
         return ThreadPoolConfigEntity.builder()
                 .applicationName(threadPoolConfigEntity.getApplicationName())
                 .threadPoolName(threadPoolConfigEntity.getThreadPoolName())
@@ -71,7 +71,7 @@ public class ThreadPoolService implements IThreadPoolService {
                 .maxPoolSize(updateThreadPoolDTO.getMaxPoolSize())
                 .build();
         String topicKey = String.join("_", KeyEnumVO.DYNAMIC_THREAD_POOL_REDIS_TOPIC.getKey(), updateThreadPoolDTO.getApplicationName());
-        RTopic topic = redissonClient.getTopic(topicKey);
+        RTopic topic = redisson.getTopic(topicKey);
         topic.publish(threadPoolConfigEntity);
     }
 }
